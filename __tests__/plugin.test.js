@@ -32,7 +32,7 @@ describe('plugin', () => {
     matchImageSnapshotOptions(options);
 
     const result = matchImageSnapshotPlugin({ path: '/path/to/cheese' });
-    expect(result).toEqual({ path: '/path/to/diff' });
+    expect(result).toEqual({ path: '/path/to/__diff_output__/cheese.diff.png' });
     expect(diffImageToSnapshot).toHaveBeenCalledWith({
       snapshotsDir: '/path/to/',
       updateSnapshot: true,

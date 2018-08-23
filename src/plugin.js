@@ -4,7 +4,6 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-
 import fs from 'fs-extra';
 import { diffImageToSnapshot } from 'jest-image-snapshot/src/diff-snapshot';
 
@@ -48,7 +47,11 @@ export function matchImageSnapshotPlugin({ path: screenshotPath }) {
   );
   const screenshotDir = screenshotPath.replace(screenshotFileName, '');
   const snapshotIdentifier = screenshotFileName.replace('.png', '');
-  const snapshotsDir = screenshotDir.replace('screenshots', 'snapshots');
+  let snapshotsDir = screenshotDir.replace('screenshots', 'snapshots');
+
+  if(options.customSnapshotsDir) {
+    snapshotsDir = options.customSnapshotsDir + screenshotDir.split('screenshots')[1]
+  }
 
   const snapshotKebabPath = path.join(
     snapshotsDir,
@@ -59,7 +62,7 @@ export function matchImageSnapshotPlugin({ path: screenshotPath }) {
     `${snapshotIdentifier}${dotSnap}`
   );
 
-  const diffDir = path.join(snapshotsDir, '__diff_output__');
+  const diffDir = path.join((options.customSnapshotsDir) ? screenshotDir : snapshotsDir, '__diff_output__');
   const diffDotPath = path.join(diffDir, `${snapshotIdentifier}${dotDiff}`);
 
   if (fs.pathExistsSync(snapshotDotPath)) {
@@ -77,14 +80,20 @@ export function matchImageSnapshotPlugin({ path: screenshotPath }) {
   });
 
   const { pass, added, updated, diffOutputPath } = snapshotResults;
-
+  
   if (!pass && !added && !updated) {
     fs.copySync(diffOutputPath, diffDotPath);
     fs.removeSync(diffOutputPath);
     fs.removeSync(snapshotKebabPath);
 
+
+    if(options.customSnapshotsDir) {
+      snapshotResults.diffOutputPath = diffDotPath;
+      fs.removeSync(path.dirname(diffOutputPath));
+    }
+
     return {
-      path: diffOutputPath,
+      path: diffDotPath,
     };
   }
 
