@@ -21,10 +21,10 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 let screenshotDetails = {};
 
-const matchImageSnapshotPlugin = (name, options, config) => new Promise((resolve, reject) => {
+const matchImageSnapshotPlugin = (name, options, config) => {
   // Check if we should skip the comparison, for example while debugging a case.
   if (options.skipCompare.call()) {
-    resolve('Snapshot Compare skipped.');
+    return Promise.resolve('Snapshot Compare skipped.');
   }
 
   // Set all paths needed in our plugin.
@@ -36,28 +36,28 @@ const matchImageSnapshotPlugin = (name, options, config) => new Promise((resolve
 
   const snapPath = _path2.default.join(relativePath, options.snapshotFolder || screenshotFolder, screenshotPath.replace('.png', options.dotSnap));
 
-  (0, _compare2.default)(snapPath, screenshotDetails.path, diffPath, config.env.updateSnapshots || false).then(({ diff, total, msg }) => {
+  return (0, _compare2.default)(snapPath, screenshotDetails.path, diffPath, config.env.updateSnapshots || false).then(({ diff, total, msg }) => {
     options.onDiffFinished.call(snapPath, screenshotDetails.path, diffPath);
 
     if (msg) {
-      resolve(msg);
+      return msg;
     }
 
     if (options.thresholdType === 'pixel') {
       if (diff > options.threshold) {
-        reject(new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} pixels.`));
+        throw new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} pixels.`);
       }
     } else if (options.threshold === 'percentage') {
       const percentage = (total - diff) / total * 100;
 
       if (percentage > options.threshold) {
-        reject(new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} percentage.`));
+        throw new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} percentage.`);
       }
     }
 
-    resolve('Screenshot matched');
-  }).catch(reason => reject(reason));
-});
+    return 'Screenshot matched';
+  });
+};
 
 const addMatchImageSnapshotPlugin = (on, config, pluginOptions) => {
   const pluginDefaults = {
