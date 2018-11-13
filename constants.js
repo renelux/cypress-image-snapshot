@@ -3,4 +3,5 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-const COMPARE = exports.COMPARE = 'Compare Image Snapshot';
+const COMPARE_OPTIONS = exports.COMPARE_OPTIONS = 'Compare Image Snapshot Options';
+const COMPARE_RESULT = exports.COMPARE_RESULT = 'Compare Image Snapshot Result';

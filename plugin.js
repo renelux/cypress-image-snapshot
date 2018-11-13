@@ -19,43 +19,46 @@ var _compare2 = _interopRequireDefault(_compare);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-let screenshotDetails = {};
+let compareOptions = {};
+let compareResult = {};
 
-const matchImageSnapshotPlugin = (name, options, config) => {
+const matchImageSnapshotPlugin = (details, config) => {
   // Check if we should skip the comparison, for example while debugging a case.
-  if (options.skipCompare.call()) {
+  if (compareOptions.skipCompare.call()) {
     return Promise.resolve('Snapshot Compare skipped.');
   }
 
   // Set all paths needed in our plugin.
   const relativePath = process.cwd();
-  const screenshotPath = screenshotDetails.path.replace(config.screenshotsFolder, '');
-  const screenshotFolder = screenshotDetails.path.replace(relativePath, '').replace(screenshotPath, '');
+  const screenshotPath = details.path.replace(config.screenshotsFolder, '');
+  const screenshotFolder = details.path.replace(relativePath, '').replace(screenshotPath, '');
 
-  const diffPath = _path2.default.join(relativePath, options.diffFolder || screenshotFolder, screenshotPath.replace('.png', options.dotDiff));
+  const diffPath = _path2.default.join(relativePath, compareOptions.diffFolder || screenshotFolder, screenshotPath.replace('.png', compareOptions.dotDiff));
 
-  const snapPath = _path2.default.join(relativePath, options.snapshotFolder || screenshotFolder, screenshotPath.replace('.png', options.dotSnap));
+  const snapPath = _path2.default.join(relativePath, compareOptions.snapshotFolder || screenshotFolder, screenshotPath.replace('.png', compareOptions.dotSnap));
 
-  return (0, _compare2.default)(snapPath, screenshotDetails.path, diffPath, config.env.updateSnapshots || false).then(({ diff, total, msg }) => {
-    options.onDiffFinished.call(snapPath, screenshotDetails.path, diffPath);
-
-    if (msg) {
-      return msg;
+  return (0, _compare2.default)(snapPath, details.path, diffPath, config.env.updateSnapshots || false, compareOptions.onDiffFinished).then(({ diff, total, message }) => {
+    if (message) {
+      compareResult.message = message;
+      return { path: snapPath };
     }
 
-    if (options.thresholdType === 'pixel') {
-      if (diff > options.threshold) {
-        throw new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} pixels.`);
+    if (compareOptions.thresholdType === 'pixel') {
+      if (diff > compareOptions.threshold) {
+        compareResult.error = `Image comparison failed, the change of ${diff} is higher than the allowed ${compareOptions.threshold} pixels.`;
+        return { path: diffPath };
       }
-    } else if (options.threshold === 'percentage') {
+    } else if (compareOptions.threshold === 'percentage') {
       const percentage = (total - diff) / total * 100;
 
-      if (percentage > options.threshold) {
-        throw new Error(`Image comparison failed, the change of ${diff} is higher than the allowed ${options.threshold} percentage.`);
+      if (percentage > compareOptions.threshold) {
+        compareResult.error = `Image comparison failed, the change of ${diff} is higher than the allowed ${compareOptions.threshold} percentage.`;
+        return { path: diffPath };
       }
     }
 
-    return 'Screenshot matched';
+    compareResult.message = 'Screenshot matched';
+    return { path: snapPath };
   });
 };
 
@@ -68,14 +71,24 @@ const addMatchImageSnapshotPlugin = (on, config, pluginOptions) => {
     skipCompare: () => false,
     threshold: 0,
     thresholdType: 'pixel',
-    onDiffFinished: () => {}
+    onDiffFinished: undefined
   };
   on('task', {
-    [_constants.COMPARE]: (name, options) => matchImageSnapshotPlugin(name, _extends({}, pluginDefaults, pluginOptions, options), config)
+    [_constants.COMPARE_OPTIONS]: options => {
+      compareOptions = _extends({}, pluginDefaults, pluginOptions, options);
+      compareResult = { error: null, message: null };
+      return null;
+    },
+    [_constants.COMPARE_RESULT]: () => {
+      console.log(compareResult);
+      if (compareResult.error) {
+        throw new Error(compareResult.error);
+      }
+
+      return Promise.resolve(compareResult.message);
+    }
   });
-  on('after:screenshot', details => {
-    screenshotDetails = details;
-  });
+  on('after:screenshot', details => matchImageSnapshotPlugin(details, config));
 };
 
 exports.addMatchImageSnapshotPlugin = addMatchImageSnapshotPlugin;
